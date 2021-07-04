@@ -1,0 +1,218 @@
+---
+title: "TP2 Analyse Factorielle des Correspondances"
+author: "Ghazi Bel Mufti"
+date: "9 avril 2020"
+output: 
+  html_document: 
+    fig_height: 4
+    fig_width: 6
+---
+
+# Exercice 1 : Construction du tableau croisée et des tableaux des profils.
+
+Considérons les données suivantes : 15 individus sont décrits par les variables Opérateur
+(avec les modalités suivantes : TT, OO et OR) et Région (avec les modalités suivantes :
+Nord, Centre et Sud).
+
+
+ 1. Introduction des données sur R
+
+
+```{r, echo=TRUE}
+operateur<-factor(c(rep("TT",7), rep("OO",4), rep("OR",4)))
+region<-factor(c("N", "C", "N", "S", "S", "C", "N",
+"S", "C", "C", "C", "S", "S", "C", "S"))
+don<-cbind.data.frame(operateur,region)
+don
+```
+
+
+ 
+ 2. Tableau croisée des effectifs et des fréquences
+```{r}
+tab<-table(don$operateur,don$region)
+tab
+addmargins(tab)
+
+```
+Le tableaux des fréquences est donné par :
+```{r}
+prop.table(tab)
+addmargins(prop.table(tab))
+```
+
+ 3. Tableaux des profils-lignes et profils-colonnes
+```{r}
+f<-round(100*tab/sum(tab),1)
+f
+prof_lig<-addmargins(prop.table(addmargins(tab,1),1),2)
+prof_lig
+prof_col<-addmargins(prop.table(addmargins(tab,2),2),1)
+prof_col
+
+```
+Ou encore, plus simplement, en utilisant le package questionr :
+```{r}
+library(questionr)
+lprop(tab)
+cprop(tab)
+```
+
+ 4. Test du chi-2
+
+```{r}
+test<-chisq.test(tab)
+test
+```
+
+
+
+# Exercice 2 : Comment effectuer une AFC dans le cas où l'input est un tableau croisée.
+
+AFC sur le tableau de contingence qui croise 4 niveaux d'études
+et 7 types de médias pour un échantillon de 12114 personnes.
+
+
+### 1. Introduction du tableau sur R 
+```{r}
+library(questionr)
+library("factoextra")
+library(FactoMineR)
+tab<-matrix(c(908,869,901,619,1307,1008,1035,612,73,107,80,177,642,408,140,
+209,360,336,311,298,435,494,504,281), ncol=6)
+rownames(tab)<-c("Prim","Second","Tech","Sup")
+colnames(tab)<-c("Radio","Télé","QuotNat", "QuotReg", "PrMag","PrTV")
+
+#Tableau de contingence
+addmargins(tab)
+```
+### 2. Tableaus des profils
+
+
+
+```{r}
+#Tableau des profils-lignes
+lprop(tab)
+```
+Ainsi parmi ceux qui ont fait des études primaires, 24.4% écoutent la Radio, 35.1% regardent la Télé, 2% lisent des Quotidiens Nationaux (Le monde, La Presse...), 17.2% lisent des Quotidiens Régionaux (Ouest France, Midi libre...), 9.7% lisent la Presse Magazine (Paris Match, ...) et 11.7% lisent la Presse TV (Télé poche, Télé Z, ...)
+
+```{r}
+#Tableau des profils-colonnes
+cprop(tab)
+```
+
+Ainsi parmi ceux qui lisent les Quotidiens nationaux, 16.7% ont fait des études Primaires, 24.5% ont fait des études Secondaires, 18.3% ont fait des études Techniques et 40% ont fait des études Supérieures. La différence qui existe entre les profils colonnes et plus particulièrement entre ce profil et le profil moyen indique que cette AFC ne peut être que pertinente, chose qui sera confirmée par le test du chi-2 (voir ci-dessous).
+
+### 3. Test du chi-2
+
+```{r}
+test<-chisq.test(tab)
+test
+```
+  - La valeur du $\chi^2$ est de 502.46
+  
+  - Le degré de liberté du $\chi^2$ est de $(p-1)*(q-1) =(6-1)*(4-1) =15$
+  
+  - La p-value étant presque nulle (elle est de l'ordre de 10 puissance -16), on peut donc rejeter l'hypothèse d'indépendance : l'AFC est donc pertinente !
+
+### 4. Exécution de l'AFC
+```{r}
+
+res.ca<-CA(tab,graph=F)
+summary(res.ca)
+```
+Notons qu'il est possible de mettre  certaines modalités de la variable en ligne ou de la variable en colonne en modalités supplémentaires en utlisant les paramètres suivants de la fonction CA : row.sup (pour les lignes supplémentaires) et col.sup (pour les colonnes supplémentaires).
+ 
+
+### 5. Choix du nombre d'axes à retenir
+
+```{r}
+eig.val <- res.ca$eig
+round(res.ca$eig,3)
+```
+D'après  le cours, la valeur de l'inertie totale de l'AFC qui est donnée par la somme des 3 (le min de (6-1) et (4-1)) valeurs propres devrait être retrouvée par la formule $\chi^2/n = 502.46/12114 = 0.0414$
+
+```{r}
+barplot(eig.val[, 2], 
+        names.arg = 1:nrow(eig.val), 
+        main = "Variances Explained by Dimensions (%)",
+        xlab = "Principal Dimensions",
+        ylab = "Percentage of variances",
+        col ="steelblue")
+# Add connected line segments to the plot
+lines(x = 1:nrow(eig.val), eig.val[, 2], 
+      type = "b", pch = 19, col = "red")
+
+```
+ 
+Le taux d'inertie cumulé du premier plan étant de 97.89%, il est clair que l'on doit se contenter des 2 premiers axes.
+ 
+### 6. Représentation et interprétation de la carte des profils-colonnes
+
+```{r}
+round(cbind(res.ca$col$coord[,1:2],res.ca$col$contrib[,1:2], res.ca$col$cos2[,1:2]),2)
+plot(res.ca, invisible="row")
+
+
+# Carte qui permet de contrôler automatiquement la couleur selon la contribution
+
+fviz_ca_col(res.ca, col.col = "contrib")+
+ scale_color_gradient2(low = "white", mid = "blue",
+           high = "red", midpoint = 25) +
+ theme_minimal()
+
+
+# Carte qui permet de contrôler automatiquement la couleur selon le cos2
+
+fviz_ca_col(res.ca, col.col="cos2")
+
+```
+ 
+- Le premier axe oppose  QuotReg (contrib=66%) à QuotNat (contrib=17.42%) ce qui signifie que les niveaux d'études des personnes qui lisent les QuotNat sont différents de ceux qui lisent les QuotReg.
+- Le deuxième axe est essentiellement expliqué par QuotNat (contrib=58.07%) et dans une moidre mesure par QuotReg et Télé.
+- Remarquons que Radio, bien qu'ayant des contributions faibles sur les 2 axes, a un cos2 de 0.99 (= 0.90 +0.09) sur le premier plan. Ceci montre l'intérêt de la carte  qui permet de contrôler automatiquement la qualité des points par leur couleur (le profil Radio étant en bleu ciel, il est donc bien représenté).  
+ 
+### 7. Représentation et interprétation de la carte des profils-lignes
+
+```{r}
+
+round(cbind(res.ca$row$coord[,1:2],res.ca$row$contrib[,1:2], res.ca$row$cos2[,1:2]),2)
+plot(res.ca, invisible="col")
+
+
+# Carte qui permet de contrôler automatiquement la couleur selon la contribution
+
+fviz_ca_row(res.ca, col.row = "contrib")+
+ scale_color_gradient2(low = "white", mid = "blue",
+           high = "red", midpoint = 25) +
+ theme_minimal()
+
+
+# Carte qui permet de contrôler automatiquement la couleur selon le cos2
+
+fviz_ca_row(res.ca, col.row = "cos2")
+
+
+```
+
+- L'axe 1 oppose les modalités Supérieur  et Technique à  Primaire.
+- L'axe 2 oppose la modalité Supérieur  à  Technique.
+- la modalité Secondaire est caractérisé par les contributions et des cos2 faible sur le premier plan.
+
+
+### 8. Carte de représentation simultannée
+ 
+```{r}
+# Biplot symétrique des lignes et des colonnes
+fviz_ca_biplot(res.ca)
+```
+ 
+- La carte de représentation simultannée montre une correpondance entre les modalités QuotNat et Supérieur, QuotReg et Primaire, PrTV  et Technique.
+
+- Les modalités Radio et Télé ont une position centrale dans cette carte. Ceci est dû au fait que  les personnes, tous niveaux d'études confondus, fréquentent principalement ces 2 médias comme le montre les profils-lignes : respectivement 24.4% et 35.1% pour les Primaires, 27% et 31.3% pour les Secondaires... 
+
+- Le lien entre QuotNat et Supérieur n'est pas "symétrique". En effet et comme nous l'avons mentionné dans le cours,  la modalité la plus excentré qui est QuotNat est expliquée par Supérieur mais pas l'inverse. On peut facilement s'en rendre compte en consultant les profils de chacune des ces 2 modalités puisque parmi ceux qui lisent les QuotNat on a 40.5% de personnes qui ont fait des études supérieures (cf Tab. des Profils-colonnes) tandis que dans la modalité Supérieur nous avons 28.2% qui écoutent la radio, 27.9 qui regardent la télé et 8.1% qui lisent des quotidiens nationaux. 
+
+- Remarque : Toutefois on devrait s'attarder sur ce 8.1% parcequ'il apporte une information intéressante malgré sa faiblesse par rapport aux % observées de la télé et de la radio. En effet, en  comparant le pourcentage de personnes qui lisent les quotidiens nationaux dans les différents niveaux d'étude, on voit qu'on en a 2% chez les Primaires, 3.3% chez les Secondaires, 2.7% chez les Techniques, 8.1% chez les Supérieurs et 3.6% sur toute la population : ils sont donc beaucoup plus présents chez les supérieurs que chez les autres. 
+
+ 

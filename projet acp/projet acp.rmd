@@ -1,0 +1,318 @@
+---
+title: 'Etude sur les Fournisseurs Internet en Tunisie '
+author: "Anis Bourbia        Mehdi Mhenni"
+date: "02 mai 2021"
+output:
+  html_document:
+    fig_height: 4
+    fig_width: 6
+  pdf_document: default
+---
+
+
+La base de données a pour objectif de traiter des données contenant des informations sur les utilisateurs d'internet en Tunisie à l'aide de statistiques descriptives, uen analyse des composantes principales suivie d'une analyse factorielle des correspondances. 
+Le tableau, extrait des réponses du questionnaire, contient 130 lignes(utilisateurs) et 29 colonnes.
+Les colonnes de 13 à 22 et 24 à 29 sont des variables quantitatives: les premières colonnes correspondent aux usages régulier d'Internet des répondants, tandis que les autres colonnes correspondent aux problèmes techniques que rencontrent les internautes et leur expérience avec le staff technique pour leurs résolutions. Le reste des colonnes sont des variables qualitatives avec des informations générales sur le répondant.
+
+# Objectifs de l'ACP 
+Cette ACP a pour objectif de de condenser l'information contenu dans le tableau de réponses par une analyse des corrélations linéaires entre les variables et une visualisation graphique des distances entre les individus. Elle nous permettra de dégager les liaisons entre variables et les ressemblances entre les utilisateurs d'Internet.
+
+# Problématique
+ 
+Comment peut-on résumer les usages des internautes par un petit nombre de variables ?
+
+Comment peut-on extraire les informations de manière pertinente et la synthétiser pour décrire ce jeu de données?
+
+
+
+
+```{r, echo=TRUE , message = FALSE , warning=FALSE}
+library(factoextra)
+library(RColorBrewer)
+library(corrplot)
+library(ggplot2)
+library(ade4)
+library(FactoMineR)
+library(readxl)
+library(questionr)
+library(reshape2)
+
+```
+# 1-Importation de la base et preparation des donnees
+
+
+```{r, echo=TRUE}
+base <-read_excel("Fournisseurs Internet en Tunisie.xlsx")
+
+
+
+usage_internet<-base[,11:22]
+
+experience<-base[,23]
+
+evaluaion<-base[,25:33]
+
+evaluaion_interaction<-base[,25:28]
+
+evaluaion_instalation<-base[,29:30]
+
+evaluaion_technique<-base[,31:33]
+
+probleme<-base[,33:39]
+```
+
+
+
+# 2-Partie satistique descreptives:
+tableau de frequence suivant age
+```{r, echo=TRUE}
+
+variable <-base$Age 
+print(variable)
+
+effectifs<-table(variable)
+print(effectifs)
+
+proportion<-round(prop.table(effectifs)*100)
+E.cumul<-cumsum(effectifs[c(1,2,3)])
+P.cumul<-cumsum(proportion[c(1,2,3)])
+age1<-c(effectifs[1],proportion[1],E.cumul[1],P.cumul[1])
+age2<-c(effectifs[2],proportion[2],E.cumul[2],P.cumul[2])
+age3<-c(effectifs[3],proportion[3],E.cumul[3],P.cumul[3])
+
+tableage<-rbind(age1,age2,age3)
+colnames(tableage)<-c("effectif","%","eff cum","(%cum)")
+rownames(tableage)<-c(" Entre 21 et 59","Inferieur a 21 ","plus de 59 ans")
+tableage
+```
+
+# 3 ACP 
+# 3-Pertinence de l’ACP
+Le corrgram donné ci-dessous permet d’étudier les corrélations entre les variables quantitatives : il est clair qu’il existe des corrélations importantes entre des groupes de variables ce qui suggère la pertinence de cette ACP (par exemple, Messagerieet Consultation Web )
+```{r, echo=TRUE,fig.width=7,fig.height=5}
+M2<-round(cor(usage_internet),3)
+M2
+library(corrplot)
+corrplot(M2, type="upper", order="hclust", col=brewer.pal(n=8, name="RdBu"))
+
+```
+# 3-b Choix du nombre d’axes à retenir:
+Trois critères devront être utlisés : taux d’inertie cumulé, critère de Kaiser et critère du coude.
+```{r, echo=TRUE,fig.width=7,fig.height=5}
+usage_internet_pca<-PCA(usage_internet,graph = F)
+head(round(usage_internet_pca$eig,3))
+fviz_screeplot(usage_internet_pca , ncp=10)
+```
+a) Critère de kaiser : Une méthode qui permet de choisir les axes ayant des valeurs propres supérieures à 1. On remarque qu’il y a 3 premiers axes dont les valeurs propres sont égale à  4.865, 1.639 et 1.226
+on retiendra 3 axes d’après ce critère.
+
+b)	Critère du taux d’inertie cumulée : L’inertie des axes factorielles indique d’une part si les variables sont structurées et suggère d’autre part le nombre judicieux de composantes principales à étudier. Les 2 premiers axes de l’ACP expriment 54.201% de l’inertie totale du jeu de données ; cela signifie que 54.201% de la variabilité totale du nuage des individus (ou des variables) est représentée dans ce plan.
+
+c)	Critère du coude : qui nous permet de choisir 2 axes dont les valeurs propres se situent avant le coude. On remarque que le coude se trouve au niveau du deuxième axe, donc on devrait retenir les 2 premiers axes.
+
+==> Par conséquent, et d'après les trois critères précédents, on devrait retenir les 2 premiers axes.
+
+
+# 3-c Interprétation de la carte des variables:
+```{r, echo=TRUE,fig.width=7,fig.height=5}
+round(usage_internet_pca$var$cos2,3)
+fviz_pca_var(usage_internet_pca)
+
+fviz_pca_var(usage_internet_pca, col.var="cos2") +
+  scale_color_gradient2(low="white", mid="blue", 
+                        high="red", midpoint=0.6) +
+  theme_minimal()
+```
+Il s'agit ici d'une carte sur le variables d'usage d'internet. Les variables en général ici sont assez proches donc plutôt liées entre eux. Les variables les plus correlés entre eux sont la consultation web et messagerie, tandis que les variables les moins correlés ici sont le streaming et l'upload/envoi de fichiers.
+
+
+
+
+# 3-d Interprétation de la carte des individus:
+```{r, echo=TRUE,fig.width=7,fig.height=5}
+plot.PCA(usage_internet_pca, axes=c(1, 2),select ="cos2 0.7" ,choix="ind", cex=0.7,mean.point=TRUE)
+
+fviz_pca_ind(usage_internet_pca,
+             geom.ind ="point", # Montre les points seulement (mais pas le "text")
+             col.ind = base$Sexe, # colorer by groups
+             palette =c("#00AFBB", "#E7B800"),
+             addEllipses =TRUE, # Ellipses de concentration
+             legend.title ="Groups"
+)
+
+fviz_pca_biplot(usage_internet_pca, repel =TRUE,
+                col.var ="#2E9FDF", # Couleur des variables
+                col.ind ="#696969" , # Couleur des individues
+)
+```
+
+Il s'agit ici d'une carte d'individus composée d'hommes et de femmes. On constate qu'il n'y a pas de différences particulières parmi les individus dans leurs usages d'internet.
+
+
+
+# 4 AFC
+
+
+
+## Tableau croisé:
+AFC sur le tableau de contingence qui croise 6 niveaux de debit et 7 types de fournisseur internet pour un échantillon de 130 personnes.
+
+```{r, echo=TRUE}
+
+
+df_afc=base[7:8]
+df_afc
+
+df_afc$fournisseur_internet=as.factor(df_afc$fournisseur_internet)
+df_afc$niveau_de_débit=as.factor(df_afc$niveau_de_débit)
+```
+
+## Tableau croisée des effectifs et des fréquences
+```{r, echo=TRUE}
+tab<-table(df_afc$fournisseur_internet,df_afc$niveau_de_débit)
+tab_eff=addmargins(tab)
+tab_eff
+
+tab_freq<-prop.table(tab)
+tab_freq
+addmargins(prop.table(tab))
+```
+
+## Profils lignes et profils colonnes
+
+
+```{r, echo=TRUE}
+profil_lignes=lprop(tab)
+profil_lignes
+```
+
+
+```{r, echo=TRUE}
+
+profil_colonnes=cprop(tab)
+profil_colonnes
+```
+
+
+## Test de khi-deux
+```{r, echo=TRUE}
+test<-chisq.test(tab)
+test
+
+```
+ - La valeur du $\chi^2$ est de 45.263
+  
+  - Le degré de liberté du $\chi^2$ est de $(p-1)*(q-1) =(7-1)*(6-1) =30$
+  
+  - La p-value étant égale à 0.036, on peut donc rejeter l'hypothèse d'indépendance : l'AFC est donc pertinente !
+
+##  Outputs de l'AFC
+
+```{r, echo=TRUE}
+res.ca<-CA(tab,graph=F)
+summary(res.ca)
+
+```
+
+## Choix du nombre d'axes
+```{r, echo=TRUE}
+
+eig.val <- res.ca$eig
+round(res.ca$eig,3)
+
+```
+
+D'après  le cours, la valeur de l'inertie totale de l'AFC qui est donnée par la somme des 5 (le min de (7-1) et (6-1)) valeurs propres devrait être retrouvée par la formule $\chi^2/n =45.263/130 = 0.3480$
+
+```{r, echo=TRUE}
+b <- barplot(eig.val[, 2], 
+        names.arg = 1:nrow(eig.val), 
+        ylim=c(0,90),
+        main = "Variances Explained by Dimensions (%)",
+        xlab = "Principal Dimensions",
+        ylab = "Percentage of variances",
+        col ="steelblue")
+text(b[,1],eig.val[,2]-1,eig.val[,2])
+
+lines(x = 1:nrow(eig.val), eig.val[, 2], 
+      type = "b", pch = 19, col = "red")
+
+```
+
+
+Le taux d'inertie cumulé du premier plan étant de 81.97%, il est clair que l'on doit se contenter des 2 premiers axes.
+ 
+
+## Représentation et interprétation de la carte des profils-colonnes
+
+```{r, echo=TRUE}
+round(cbind(res.ca$col$coord[,1:2],res.ca$col$contrib[,1:2], res.ca$col$cos2[,1:2]),2)
+plot(res.ca, invisible="row")
+
+
+# Contribution
+
+fviz_ca_col(res.ca, col.col = "contrib")+
+ scale_color_gradient2(low = "white", mid = "blue",
+           high = "red", midpoint = 25) +
+ theme_minimal()
+
+
+# Cos2
+
+fviz_ca_col(res.ca, col.col="cos2")
+  
+  
+```
+
+La visualisation sur la colonne contrib de res.ca montre que les débits 2Méga et moins et entre 12Méga et 20Méga ont une contribution importante pour la première dimension, tandis que Plus que 20Méga a une contribution importante pour la deuxième dimension.
+
+la visualisation sur la colonne cos2 de res.ca montre des valeurs comprises entre 0 et 1. Les variables à faible valeurs de cos2 sont Entre 12 et 20Méga et les valeurs élevés sont Plus que 20Méga et Entre 2 et 4Méga.
+
+
+
+## Représentation et interprétation de la carte des profils-lignes
+```{r, echo=TRUE}
+round(cbind(res.ca$row$coord[,1:2],res.ca$row$contrib[,1:2], res.ca$row$cos2[,1:2]),2)
+plot(res.ca, invisible="col")
+
+
+fviz_ca_row(res.ca, col.row = "contrib")+
+ scale_color_gradient2(low = "white", mid = "blue",
+           high = "red", midpoint = 25) +
+ theme_minimal()
+
+
+
+fviz_ca_row(res.ca, col.row = "cos2")
+
+```
+
+La visualisation sur la colonne contrib de res.ca montre que les fournisseurs Ooreedo et Topnet ont une contribution importante pour la première dimension, tandis que Orange et Telecom ont une contribution importante pour la deuxième dimension.
+
+la visualisation sur la colonne cos2 de res.ca montre des valeurs comprises entre 0 et 1. La variables à faible valeur de cos2 est Telecom et les valeurs élevés sont Orange, Topnet et Ooreedo.
+
+
+# Carte de représentation simultanée
+
+```{r, echo=TRUE}
+fviz_ca_biplot(res.ca, map = "colgreen", arrow = c(TRUE,FALSE), repel = TRUE)
+````
+
+Le Biplot a pour but de représenter les lignes et les colonnes sur le même graphe. Dans cette représentation, plus une flèche est proche d'un axe (En terme de distance angulaire), plus la contribution sur cet axe par rapport à l'autre axe est importante. On remarque ici que la flèche d'Hexabyte a la même distance entre les deux axes donc possède, à peu près, la même contribution sur les deux axes.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

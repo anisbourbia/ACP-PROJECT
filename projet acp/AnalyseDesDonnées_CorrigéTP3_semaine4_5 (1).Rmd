@@ -1,0 +1,201 @@
+---
+title: "TP3 Analyse des Correspondances Multiples"
+author: "Ghazi Bel Mufti"
+date: "7 mai 2020"
+output: 
+  html_document: 
+    fig_height: 4
+    fig_width: 6
+---
+
+# Questions de cours 
+
+1. Comme nous l'avons vu dans le cours, l'ACM est une AFC sur le tableau disjonctif complet (TDC).
+ 
+2. Cos2 et contribution d'un individu à un axe dans une ACM :
+
+ - La contribution  de l'individu  $i$ dans la variance prise en compte sur l'axe $\alpha$ :
+
+$$\displaystyle CTR(i,\alpha)=\frac {1/n (\Psi^i_\alpha)^2}{\lambda_\alpha}$$
+  
+ - Le cos2 de l'individu $i$ sur l'axe  $\alpha$ est donné par  :
+
+$$cos^2_\alpha(i)
+=\displaystyle\frac{(\Psi^i_\alpha)^2}{d_{\chi^2}^2(i, g_l)} $$
+
+où $d_{\chi^2}^2(i, g_l) = \displaystyle \sum_{j=1}^p \frac{nm}{k(j)} (\frac{k(i,j)}{m} - \frac{k(j)}{nm})^2$.
+
+
+# Exercice 
+
+Les données poison du package Factominer proviennent d'une enquête
+menée auprès d'enfants de l'école primaire qui ont subi des intoxications alimentaires.
+Ils ont été interrogés sur leurs symptômes et sur ce qu'ils ont mangé. Les données
+contiennent 55 lignes (individus) et 15 colonnes (variables).
+
+###  1. Exécution de l'Analyse des Correspondances Multiples sur les 11 dernières variables.
+
+```{r}
+library(FactoMineR)
+library(factoextra)
+library(FactoInvestigate)
+data(poison)
+dim(poison)
+summary(poison)
+poison.active<-poison[,5:15]
+
+res.mca <- MCA (poison.active, graph = FALSE)
+```
+### 2. Calcul le taux d'inertie cumulé des 2 premiers axes de cette ACM.
+
+```{r}
+res.mca$eig
+
+```
+ - Si $m = 11$ est le nombre de variables et $p = 22$ est le nombre de modalités alors l'inertie totale de cette ACM est donnée par la formule
+$\displaystyle\frac{p}{m}-1$ ce qui donne 1. 
+
+ - Le taux d'inertie cumulé des 2 premiers axes est donné par $\displaystyle\frac{0.335 + 0.129}{I_T}= 0.464$, où $I_T$ est l'inertie totale, soit $46.4\%$.
+
+
+### 3. Nombre d'axes à retenir en vous basant sur 3 critères différents.
+
+
+
+ - Critère 1 :  Retenir les axes dont les valeurs propres sont supérieures à la moyenne
+soit $\displaystyle\frac{1}{m} =0.09$  donc les 4 premiers axes. 
+
+ - Critère 2 : Tracer le graphique des valeurs propres
+et noter que le coude se trouve au niveau du deuxième axe. 
+```{r}
+fviz_screeplot(res.mca)
+```
+
+ - Critère 3 : Raisonner sur le taux
+d'inertie cumulé et retenir les 2 premeiers axes qui, sur les 11 axes de l'ACM, accumulent
+quasi la moitié de l'inertie. 
+
+
+En conclusion, le choix des 2 premiers axes serait justifié.
+
+### 4. Interprétation de la première carte des modalités. 
+
+```{r}
+#Représentation de la première carte des modalités
+fviz_mca_var (res.mca,
+              repel = TRUE, 
+              ggtheme = theme_minimal ())
+
+# Sélectionner et visualiser les modalités avec cos2 >= 0.4
+fviz_mca_var(res.mca, select.var = list(cos2 = 0.4))
+
+
+```
+
+
+ - Il suffit d'identifier les groupes de modalités qui sont proches dans la
+carte. On a un premier groupe de modalités à droite constitué des modalités  Cheese_n, 
+Mayo_n,  Diarrhea_n, Abdo_n et Fever_n et dont l'interprétation est la suivante : il existe un lien entre le fait de ne  pas consommer du fromage et de la mayonnaise et ne pas avoir ni diarrhée
+ni douleur abdominale ni fièvre. Ce groupe est opposé sur le premier axe au groupe
+Cheese_y, Mayo_y, Diarrhea_y, Abdo_y, Fever_n; Vomit_y et Nausea_y ce qui signifierait que les symptômes diarrhée et vaumissement seraient liés à la consommation de
+fromage et de la mayonnaise.
+
+ - On notera aussi que Courg_n, en haut du deuxième axe, s'oppose à Potato_n.
+ 
+ 
+ - Afin de se faire aider dans notre interprétation des axes nous pouvons utiliser la commande $\tt dimdesc()$ de Factominer.
+ 
+ 
+ La fonction $\tt dimdesc()$ aide à interpréter les dimensions d'une ACP, ACM ou AFC. Elle permet de décrire les dimensions à la fois par des variables qualitatives et des variables continues.
+
+
+Objectif de cette fonction : elle est très utile quand le nombre de variables  est élevé.
+Elle permet de voir à quelles variables les axes sont le plus liés : quelles variables continues sont les plus corrélées à chaque axe (dans le cas de l'ACP) et quelles variables qualitatives et quelles modalités décrivent le mieux chaque axe (dans le cas de l'ACM.
+
+Principe de cette fonction : un modèle d'analyse de variance à un facteur est réalisé pour chaque dimension ; les variables à expliquer sont les coordonnées des individus et la variable explicative est une des variables qualitatives.
+
+Un test F permet de voir si la variable a un effet significatif sur la dimension et des tests T sont réalisés modalité par modalité. 
+Les variables et modalités sont triées par probabilité critique et seules celles qui sont significatives (p-value inférieur au seuil fixé dans la fonction) sont gardées dans le résultat.
+
+On va réaliser la fonction dimdesc() sur les axes de notre ACM.
+
+```{r}
+dimdesc(res.mca, axes=1:2, proba=0.05)
+
+```
+
+ - En consultant les résultats de la partie $\tt `Dim 1`\$category$, on peut en déduire aisément que l'axe 1 oppose le groupe de modalités [Abdo_n, ...,Cheese_n] au groupe [Chees_y, ..., Abdo_y]. Notons que la modalité la plus importante du coté positif (resp. négatif) de cet axe est Abdo_n  (resp. Abdo_y) avec des p-value de l'orde de $10^{-23}$.
+ 
+ - A partir des résultats de $\tt `Dim 2`\$category$, on voit que l'axe 2 oppose [courg_n, ..., Icecream_n] à [Icecream_y, ..., Courg_y].
+
+
+ 
+
+### 5. Interprétation de la première carte des individus.
+
+```{r}
+#Représentation de la première carte des individus
+fviz_mca_ind (res.mca,
+              repel = TRUE, 
+              ggtheme = theme_minimal ())
+
+
+# Top 30 des individus les plus contributifs
+fviz_mca_biplot(res.mca,
+               select.ind = list(contrib = 30),
+               invisible ="var",repel = TRUE, 
+              ggtheme = theme_minimal ())
+
+# Contrôler la couleur des individus selon le cos2
+fviz_mca_biplot(res.mca,
+               col.ind="cos2",
+               invisible ="var",repel = TRUE, 
+              ggtheme = theme_minimal ())
+
+
+```
+
+ - Pour interpréter cette carte, on se base sur l'interprétation de la carte
+des modalités (cf. qusestion 4). Ainsi, un premier groupe $G_1$ d'enfants dont les numéros sont [38,
+53, ...,26], situé du coté droit de la carte, serait caractérisé par les modalités Cheese_n, Mayo_n, Diarrhea_n, Abdo_n et Fever_n et qui sont 
+donc les enfants sains. 
+
+ - 2 groupes  $G_2$ =[44, 28, 45, 23] et $G_3$=[35, 37, 39] s'opposent au groupe $G_1$ sur le premier axe. Ils sont plutôt caractérisés par Cheese_y, Mayo_y, Diarrhea_y, Abdo_y, Fever_n, Vomit_y et Nausea_y. D'autre part, le fait que les groupes $G_2$ et $G_3$ s'opposent sur le deuxième axe est lié au fait que le premier groupe n'a pas consommé de courgette (i.e. Courg_n) tandis que le second n'a pas consommé de pomme de
+terre (i.e. Potato_n).
+
+
+Il est possible de colorer les individus par la couleur des groupes d'une variable comme c'est le cas dans l'exemple suivant avec les modalités de la varibale "Vomiting".
+
+```{r}
+# Colorer les individus par groupes
+grp <- as.factor(poison.active[, "Vomiting"])
+fviz_mca_ind(res.mca, label="none", habillage=grp)
+```
+
+Il est clair que le centre du groupe d'enfants qui n'ont pas vomi (i.e. la grande boule rouge) est à droite de l'axe 1 tandis que celui des enfants qui ont vomi est à gauche (i.e. la grande boule bleue).
+
+### Remarques :
+
+ - Rq1 : il est possible de rajouter des variables qualitatives ou quantitatives en variable supplémentaires de l'ACM afin d'enrichir l'interprétation des cartes.
+
+```{r}
+library(FactoMineR)
+data(poison)
+res.mca.sup = MCA (poison, quanti.sup=c(1:2), quali.sup=c(3:4))
+```
+
+
+ - Rq2 : en utilisant la fonction $\tt biplot()$ il est possible d'avoir la carte de représentation simultannée des modalités et des individus. Cette fonction permet, entre autres, de choisir les individus et les modalités selon   leur contribution comme le montre l'exemple suivant :
+ 
+```{r}
+# Top 30 des individus les plus contributifs
+# et top 10 des variables les plus contributifs
+fviz_mca_biplot(res.mca,
+               select.ind = list(contrib = 30),
+               select.var = list(contrib = 10))
+```
+ 
+ 
+ 
+ 
+ 
